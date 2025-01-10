@@ -1,0 +1,202 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
+
+// Abstract base class
+abstract class Account {
+    protected String accountNumber;
+    protected String accountHolderName;
+    protected double balance;
+
+    public Account(String accountNumber, String accountHolderName, double initialBalance) {
+        this.accountNumber = accountNumber;
+        this.accountHolderName = accountHolderName;
+        this.balance = initialBalance;
+    }
+
+    // Abstract methods
+    public abstract void deposit(double amount, BufferedWriter writer) throws IOException;
+
+    public abstract void withdraw(double amount, BufferedWriter writer) throws IOException;
+
+    // Display account information
+    public void displayAccountInfo(BufferedWriter writer) throws IOException {
+        String info = "\nAccount Information:\n" +
+                "Account Number: " + accountNumber + "\n" +
+                "Account Holder Name: " + accountHolderName + "\n" +
+                "Balance: " + balance + "\n";
+        System.out.println(info);
+        writer.write(info);
+    }
+}
+
+// SavingsAccount subclass
+class SavingsAccount extends Account {
+    private double interestRate;
+
+    public SavingsAccount(String accountNumber, String accountHolderName, double initialBalance, double interestRate) {
+        super(accountNumber, accountHolderName, initialBalance);
+        this.interestRate = interestRate;
+    }
+
+    @Override
+    public void deposit(double amount, BufferedWriter writer) throws IOException {
+        if (amount > 0) {
+            balance += amount;
+            String log = "Deposited " + amount + " to Savings Account.\n";
+            System.out.println(log);
+            writer.write(log);
+        } else {
+            System.out.println("Deposit amount must be positive.");
+        }
+    }
+
+    @Override
+    public void withdraw(double amount, BufferedWriter writer) throws IOException {
+        if (amount > 0 && amount <= balance) {
+            balance -= amount;
+            String log = "Withdrew " + amount + " from Savings Account.\n";
+            System.out.println(log);
+            writer.write(log);
+        } else {
+            System.out.println("Insufficient balance or invalid amount.");
+        }
+    }
+
+    public void applyInterest(BufferedWriter writer) throws IOException {
+        double interest = balance * (interestRate / 100);
+        balance += interest;
+        String log = "Applied interest of " + interest + ". New balance is " + balance + ".\n";
+        System.out.println(log);
+        writer.write(log);
+    }
+}
+
+// CheckingAccount subclass
+class CheckingAccount extends Account {
+    private double overdraftLimit;
+
+    public CheckingAccount(String accountNumber, String accountHolderName, double initialBalance, double overdraftLimit) {
+        super(accountNumber, accountHolderName, initialBalance);
+        this.overdraftLimit = overdraftLimit;
+    }
+
+    @Override
+    public void deposit(double amount, BufferedWriter writer) throws IOException {
+        if (amount > 0) {
+            balance += amount;
+            String log = "Deposited " + amount + " to Checking Account.\n";
+            System.out.println(log);
+            writer.write(log);
+        } else {
+            System.out.println("Deposit amount must be positive.");
+        }
+    }
+
+    @Override
+    public void withdraw(double amount, BufferedWriter writer) throws IOException {
+        if (amount > 0 && balance - amount >= -overdraftLimit) {
+            balance -= amount;
+            String log = "Withdrew " + amount + " from Checking Account.\n";
+            System.out.println(log);
+            writer.write(log);
+        } else {
+            System.out.println("Overdraft limit exceeded or invalid amount.");
+        }
+    }
+}
+
+// Main class
+public class Main {
+    public static void main(String[] args) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("account_history.txt", true))) {
+            Scanner scanner = new Scanner(System.in);
+
+            // Prompt user for account details
+            System.out.print("Enter account type (Savings/Checking): ");
+            String accountType = scanner.nextLine();
+
+            System.out.print("Enter account holder name: ");
+            String accountHolderName = scanner.nextLine();
+
+            System.out.print("Enter account number: ");
+            String accountNumber = scanner.nextLine();
+
+            System.out.print("Enter initial balance: ");
+            double initialBalance = scanner.nextDouble();
+
+            if (accountType.equalsIgnoreCase("Savings")) {
+                System.out.print("Enter interest rate (in %): ");
+                double interestRate = scanner.nextDouble();
+
+                // Create a SavingsAccount
+                SavingsAccount savings = new SavingsAccount(accountNumber, accountHolderName, initialBalance, interestRate);
+
+                // Perform actions
+                performActions(savings, scanner, writer);
+            } else if (accountType.equalsIgnoreCase("Checking")) {
+                System.out.print("Enter overdraft limit: ");
+                double overdraftLimit = scanner.nextDouble();
+
+                // Create a CheckingAccount
+                CheckingAccount checking = new CheckingAccount(accountNumber, accountHolderName, initialBalance, overdraftLimit);
+
+                // Perform actions
+                performActions(checking, scanner, writer);
+            } else {
+                System.out.println("Invalid account type.");
+            }
+
+        } catch (IOException e) {
+            System.out.println("An error occurred while writing to the file: " + e.getMessage());
+        }
+    }
+
+    public static void performActions(Account account, Scanner scanner, BufferedWriter writer) throws IOException {
+        boolean running = true;
+        while (running) {
+            System.out.println("\nChoose an action: ");
+            System.out.println("1. Deposit");
+            System.out.println("2. Withdraw");
+            System.out.println("3. Display Account Info");
+            if (account instanceof SavingsAccount) {
+                System.out.println("4. Apply Interest");
+            }
+            System.out.println("5. Exit");
+
+            System.out.print("Enter your choice: ");
+            int choice = scanner.nextInt();
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter amount to deposit: ");
+                    double depositAmount = scanner.nextDouble();
+                    account.deposit(depositAmount, writer);
+                    break;
+                case 2:
+                    System.out.print("Enter amount to withdraw: ");
+                    double withdrawAmount = scanner.nextDouble();
+                    account.withdraw(withdrawAmount, writer);
+                    break;
+                case 3:
+                    account.displayAccountInfo(writer);
+                    break;
+                case 4:
+                    if (account instanceof SavingsAccount) {
+                        ((SavingsAccount) account).applyInterest(writer);
+                    } else {
+                        System.out.println("Invalid choice for this account type.");
+                    }
+                    break;
+                case 5:
+                    running = false;
+                    System.out.println("Thank you for using the banking system.");
+                    writer.write("Session ended.\n");
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+}
